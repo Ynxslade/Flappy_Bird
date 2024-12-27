@@ -1,0 +1,163 @@
+import pygame
+import random
+pygame.init()
+
+# Screen dimensions
+SCREEN_WIDTH = 500
+SCREEN_HEIGHT = 750
+
+# Create the screen
+SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+# Background image
+BACKGROUND_IMAGE = pygame.image.load('background.jpg')
+
+# Bird image
+BIRD_IMAGE = pygame.image.load('bird1.png')
+
+# Bird initial position and velocity
+bird_x = 50
+bird_y = 300
+bird_y_change = 0
+
+# Gravity, jump strength, and velocity cap
+GRAVITY = 0.5
+JUMP_STRENGTH = -10
+MAX_VELOCITY = 8  # Maximum downward velocity
+
+# Frame rate control
+clock = pygame.time.Clock()
+FPS = 60  # Set to 60 frames per second
+
+# Obstacles
+OBSTACLES_WIDTH = 70
+OBSTACLES_HEIGHT = random.randint(150, 450)
+OBSTACLES_COLOR = (211, 253, 117)
+OBSTACLES_X_CHANGE = -4
+obstacle_x = 500
+GAP = 175  # Gap between top and bottom obstacles
+
+# Game restart
+game_state = "playing"
+
+# Scoring
+score = 0
+SCORE_FONT = pygame.font.Font(None, 36)  # Use a default font
+
+def display_obstacle(height):
+    # Top obstacle
+    pygame.draw.rect(SCREEN, OBSTACLES_COLOR, (obstacle_x, 0, OBSTACLES_WIDTH, height))
+    # Bottom obstacle
+    bottom_obstacle_y = height + GAP
+    bottom_obstacle_height = SCREEN_HEIGHT - bottom_obstacle_y
+    pygame.draw.rect(SCREEN, OBSTACLES_COLOR, (obstacle_x, bottom_obstacle_y, OBSTACLES_WIDTH, bottom_obstacle_height))
+
+def collision_detection(obstacle_x, obstacle_height, bird_y):
+    bird_height = BIRD_IMAGE.get_height()
+    bottom_obstacle_y = obstacle_height + GAP
+    # Check for collision with top or bottom obstacle
+    if 50 <= obstacle_x <= (50 + BIRD_IMAGE.get_width()):
+        if bird_y <= obstacle_height or bird_y + bird_height >= bottom_obstacle_y:  # Fixed the logic here
+            return True
+    return False
+
+def score_display(score):
+    display = SCORE_FONT.render(f"Score: {score}", True, (255, 255, 255))
+    SCREEN.blit(display, (10, 10))
+
+def display_bird(x, y, angle):
+    # Rotate the bird image
+    rotated_bird = pygame.transform.rotate(BIRD_IMAGE, angle)
+    # Adjust position to account for rotation
+    bird_rect = rotated_bird.get_rect(center=(x + BIRD_IMAGE.get_width() // 2, y + BIRD_IMAGE.get_height() // 2))
+    SCREEN.blit(rotated_bird, bird_rect.topleft)
+
+def display_game_over():
+    font = pygame.font.Font(None, 72)
+    game_over_text = font.render("Game Over!", True, (255, 255, 255))
+    restart_text = font.render("Press R to Restart", True, (255, 255, 255))
+    SCREEN.blit(game_over_text, (100, 300))
+    SCREEN.blit(restart_text, (50, 400))
+
+running = True
+while running:
+    SCREEN.fill((0, 0, 0))
+
+    # Display the background image
+    SCREEN.blit(BACKGROUND_IMAGE, (0, 0))
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            # If you press exit, break the loop and quit pygame
+            running = False
+        if game_state == "game over" and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                # Correct assignment to reset the game state and variables
+                game_state = "playing"
+                bird_y = 300  # Reset bird's position
+                bird_y_change = 0
+                obstacle_x = SCREEN_WIDTH  # Reset obstacle position
+                OBSTACLES_HEIGHT = random.randint(150, 400)
+                score = 0  # Reset score
+
+        if game_state == "playing" and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                bird_y_change = JUMP_STRENGTH  # Bird jumps
+
+    # Apply gravity
+    bird_y_change += GRAVITY
+
+    # Cap the bird's velocity
+    if bird_y_change > MAX_VELOCITY:
+        bird_y_change = MAX_VELOCITY
+
+    # Update bird's position
+    bird_y += bird_y_change
+
+    # Prevent bird from going off-screen (bottom)
+    if bird_y > SCREEN_HEIGHT - BIRD_IMAGE.get_height():
+        bird_y = SCREEN_HEIGHT - BIRD_IMAGE.get_height()
+        bird_y_change = 0  # Reset velocity at the bottom
+
+    # Prevent bird from going off-screen (top)
+    if bird_y < 0:
+        bird_y = 0
+        bird_y_change = 0  # Reset velocity at the top
+
+    # Calculate the rotation angle for the bird
+    angle = -bird_y_change * 3
+    angle = max(min(angle, 45), -45)
+
+    # Display the bird
+    display_bird(bird_x, bird_y, angle)
+
+    # Update obstacle position and display
+    obstacle_x += OBSTACLES_X_CHANGE
+    if obstacle_x <= -OBSTACLES_WIDTH:
+        obstacle_x = SCREEN_WIDTH
+        OBSTACLES_HEIGHT = random.randint(150, 400)  # Randomize top obstacle height
+        score += 1  # Increment score when the bird successfully passes an obstacle
+
+    display_obstacle(OBSTACLES_HEIGHT)
+
+    # Check for collision
+    if game_state == "playing":
+        collision = collision_detection(obstacle_x, OBSTACLES_HEIGHT, bird_y)
+        if collision:
+            game_state = "game over"  # Switch to game over state
+
+    # Display the score
+    score_display(score)
+
+    # If the game is over, display the restart screen
+    if game_state == "game over":
+        display_game_over()
+
+    # Update the display after each iteration of the while loop
+    pygame.display.update()
+
+    # Limit the frame rate
+    clock.tick(FPS)
+
+# Quit the program
+pygame.quit()
